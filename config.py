@@ -45,3 +45,7 @@ SERVICE_TOKEN = os.getenv("SERVICE_TOKEN", "")
 
 # Logging
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
+
+# HTTP API
+API_HOST = os.getenv("API_HOST", "127.0.0.1")
+API_PORT = int(os.getenv("API_PORT", "8099"))

@@ -30,8 +30,8 @@ SyslogIdentifier=claude-session-manager
 # Security hardening
 NoNewPrivileges=true
 ProtectSystem=strict
-ProtectHome=read-only
-ReadWritePaths=/var/log/claude /tmp
+# ProtectHome disabled - Claude needs write access to ~/.claude/
+ReadWritePaths=/var/log/claude /tmp /home/rob/.claude /home/rob/.local
 PrivateTmp=true
 
 [Install]

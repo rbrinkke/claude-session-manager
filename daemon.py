@@ -7,6 +7,7 @@ Manages multiple Claude Code sessions with:
 - Chat polling for incoming messages
 - Log file writing
 - Database state tracking
+- HTTP API for external control
 """
 import asyncio
 import json
@@ -29,7 +30,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from config import (
     MAX_SESSIONS, HEARTBEAT_INTERVAL, LOG_CLEANUP_INTERVAL,
-    LOG_LEVEL, LOG_DIR
+    LOG_LEVEL, LOG_DIR, API_HOST, API_PORT
 )
 from models import (
     engine, async_session, init_db,
@@ -58,8 +59,10 @@ class SessionManager:
     def __init__(self):
         self.sessions: Dict[UUID, ManagedSession] = {}
         self.running = False
+        self.max_sessions = MAX_SESSIONS
         self._heartbeat_task: Optional[asyncio.Task] = None
         self._cleanup_task: Optional[asyncio.Task] = None
+        self._api_task: Optional[asyncio.Task] = None
 
     async def start(self):
         """Start the session manager."""
@@ -77,6 +80,9 @@ class SessionManager:
         self._heartbeat_task = asyncio.create_task(self._heartbeat_loop())
         self._cleanup_task = asyncio.create_task(self._cleanup_loop())
 
+        # Start HTTP API server
+        self._api_task = asyncio.create_task(self._run_api_server())
+
         logger.info("Session manager started")
 
     async def stop(self):
@@ -93,6 +99,8 @@ class SessionManager:
             self._heartbeat_task.cancel()
         if self._cleanup_task:
             self._cleanup_task.cancel()
+        if self._api_task:
+            self._api_task.cancel()
 
         logger.info("Session manager stopped")
 
@@ -277,6 +285,30 @@ class SessionManager:
                 logger.error(f"Cleanup error: {e}")
 
             await asyncio.sleep(LOG_CLEANUP_INTERVAL)
+
+    async def _run_api_server(self):
+        """Run the HTTP API server."""
+        import uvicorn
+        from api import create_api
+
+        app = create_api(self)
+        config = uvicorn.Config(
+            app,
+            host=API_HOST,
+            port=API_PORT,
+            log_level="info",
+            access_log=True,
+        )
+        server = uvicorn.Server(config)
+
+        logger.info(f"Starting HTTP API server on {API_HOST}:{API_PORT}")
+
+        try:
+            await server.serve()
+        except asyncio.CancelledError:
+            logger.info("API server shutdown")
+        except Exception as e:
+            logger.error(f"API server error: {e}")
 
 
 class ManagedSession:
