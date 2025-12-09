@@ -1,0 +1,38 @@
+[Unit]
+Description=Claude Code Session Manager Daemon
+Documentation=https://github.com/anthropics/claude-code
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=rob
+Group=rob
+WorkingDirectory=/opt/goamet/services/claude-session-manager
+Environment=PATH=/home/rob/.local/bin:/usr/local/bin:/usr/bin:/bin
+EnvironmentFile=/opt/goamet/services/claude-session-manager/.env
+
+# Main daemon (using venv)
+ExecStart=/opt/goamet/services/claude-session-manager/venv/bin/python /opt/goamet/services/claude-session-manager/daemon.py
+
+# Graceful shutdown
+ExecStop=/bin/kill -SIGTERM $MAINPID
+TimeoutStopSec=30
+
+# Restart policy
+Restart=on-failure
+RestartSec=10
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=claude-session-manager
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/var/log/claude /tmp
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
